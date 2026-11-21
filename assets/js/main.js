@@ -2892,6 +2892,60 @@ function initProjectEndNav() {
 
   let navResetTimer = null;
 
+  function syncProjectEndNavArrows() {
+    navButtons.forEach((btn) => {
+      const titleRow = btn.querySelector('.pnav-title-row');
+      const arrow = btn.querySelector('.pnav-arrow-svg');
+      if (!titleRow || !arrow) return;
+
+      const w = titleRow.getBoundingClientRect().width;
+      if (w <= 0) return;
+
+      const h = arrow.getBoundingClientRect().height || 22;
+      const cy = h / 2;
+      const triH = Math.max(12, h - 2);
+      const triHalf = triH / 2;
+      const headL = +(triH * 0.85).toFixed(2);
+      const stemHalf = +((triH * 0.255) / 2).toFixed(2);
+
+      const yTop = +(cy - triHalf).toFixed(2);
+      const yBot = +(cy + triHalf).toFixed(2);
+      const sTop = +(cy - stemHalf).toFixed(2);
+      const sBot = +(cy + stemHalf).toFixed(2);
+      const wFixed = +w.toFixed(2);
+      const cyFixed = +cy.toFixed(2);
+
+      arrow.style.width = `${wFixed}px`;
+      arrow.setAttribute('viewBox', `0 0 ${wFixed} ${+h.toFixed(2)}`);
+
+      if (btn.classList.contains('project-nav-prev')) {
+        arrow.innerHTML = `<path d="M 0 ${cyFixed} L ${headL} ${yTop} L ${headL} ${sTop} L ${wFixed} ${sTop} L ${wFixed} ${sBot} L ${headL} ${sBot} L ${headL} ${yBot} Z" fill="#000000" />`;
+      } else {
+        const baseX = +(wFixed - headL).toFixed(2);
+        arrow.innerHTML = `<path d="M ${wFixed} ${cyFixed} L ${baseX} ${yTop} L ${baseX} ${sTop} L 0 ${sTop} L 0 ${sBot} L ${baseX} ${sBot} L ${baseX} ${yBot} Z" fill="#000000" />`;
+      }
+    });
+  }
+
+  syncProjectEndNavArrows();
+  window.addEventListener('resize', syncProjectEndNavArrows);
+  if (window.ResizeObserver) {
+    const titleRo = new ResizeObserver(() => {
+      syncProjectEndNavArrows();
+    });
+    navButtons.forEach((btn) => {
+      const titleRow = btn.querySelector('.pnav-title-row');
+      if (titleRow) titleRo.observe(titleRow);
+    });
+  }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => {
+      syncProjectEndNavArrows();
+      setTimeout(syncProjectEndNavArrows, 120);
+    });
+  }
+  window.syncProjectEndNavArrows = syncProjectEndNavArrows;
+
   function getActiveProjectScreen() {
     if (document.body.classList.contains('lucio-active')) return document.getElementById('lucio-screen');
     if (document.body.classList.contains('dea-active')) return document.getElementById('dea-screen');
