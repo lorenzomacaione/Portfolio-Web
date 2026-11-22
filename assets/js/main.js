@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initProximityDescriptions();
   initProjectEndNav();
   initArchiveScreen();
+  initCustomEdgeScrollbar();
 
   if (window.location.hash === '#archive') {
     document.body.classList.remove('intro-opening');
@@ -752,6 +753,7 @@ function initInfiniteScroll() {
 
       window.scrollTo({ top: projectScrollY, behavior: 'instant' });
       updateParallax();
+      if (window.updateCustomEdgeScrollbar) window.updateCustomEdgeScrollbar();
     }
 
     if (needsNextFrame) {
@@ -790,11 +792,13 @@ function initInfiniteScroll() {
       currentAboutScrollY += diff * 0.085; // Decelerazione morbida, controllata e lenta
       aboutScreen.scrollTop = currentAboutScrollY;
       checkContactsInView();
+      if (window.updateCustomEdgeScrollbar) window.updateCustomEdgeScrollbar();
       requestAnimationFrame(aboutScrollAnimationLoop);
     } else {
       currentAboutScrollY = targetAboutScrollY;
       aboutScreen.scrollTop = currentAboutScrollY;
       checkContactsInView();
+      if (window.updateCustomEdgeScrollbar) window.updateCustomEdgeScrollbar();
       isAboutScrollTicking = false;
     }
   }
@@ -807,8 +811,37 @@ function initInfiniteScroll() {
         targetAboutScrollY = aboutScreenEl.scrollTop;
         currentAboutScrollY = aboutScreenEl.scrollTop;
       }
+      if (window.updateCustomEdgeScrollbar) window.updateCustomEdgeScrollbar();
     }, { passive: true });
   }
+
+  window.__portfolioScrollBridge = {
+    getHomeProgress() {
+      const ch = getCycleHeight();
+      if (ch <= 0) return 0;
+      const mod = ((projectScrollY % ch) + ch) % ch;
+      return Math.max(0, Math.min(1, mod / ch));
+    },
+    setHomeProgress(p) {
+      const ch = getCycleHeight();
+      if (ch <= 0) return;
+      const clamped = Math.max(0, Math.min(1, p));
+      projectScrollY = clamped * ch;
+      targetProjectY = projectScrollY;
+      window.scrollTo({ top: projectScrollY, behavior: 'instant' });
+      updateParallax();
+    },
+    setAboutScrollTop(val) {
+      if (!aboutScreenEl) return;
+      const maxScroll = Math.max(0, aboutScreenEl.scrollHeight - aboutScreenEl.clientHeight);
+      const clamped = Math.max(0, Math.min(maxScroll, val));
+      isAboutScrollTicking = false;
+      targetAboutScrollY = clamped;
+      currentAboutScrollY = clamped;
+      aboutScreenEl.scrollTop = clamped;
+      checkContactsInView();
+    }
+  };
 
   // Monitora reflow e font loading per mantenere l'allineamento a filo
   const aboutScrollContentEl = document.querySelector('.about-scroll-content');
@@ -3609,6 +3642,297 @@ function initArchiveScreen() {
 
   window.openArchiveScreen = openArchiveScreen;
   window.closeArchiveScreen = closeArchiveScreen;
+}
+
+// 13. Custom Right-Edge Proximity Scrollbar
+function initCustomEdgeScrollbar() {
+  const scrollbarEl = document.getElementById('custom-edge-scrollbar');
+  const thumbEl = document.getElementById('custom-scrollbar-thumb');
+  if (!scrollbarEl || !thumbEl) return;
+
+  const EDGE_PROXIMITY_PX = 44;
+  const HIDE_DELAY_MS = 3000;
+  const TOP_PAD = 12;
+  const BOTTOM_PAD = 12;
+
+  let isVisible = false;
+  let isHoveringThumb = false;
+  let isDragging = false;
+  let hideTimer = null;
+  let dragStartY = 0;
+  let dragStartProgress = 0;
+
+  const scrollableScreens = [
+    document.getElementById('lucio-screen'),
+    document.getElementById('dea-screen'),
+    document.getElementById('utopia-screen'),
+    document.getElementById('climbex-screen'),
+    document.getElementById('nyo-screen'),
+    document.getElementById('about-screen'),
+    document.getElementById('archive-screen')
+  ].filter(Boolean);
+
+  function getActiveScrollContext() {
+    const b = document.body;
+    if (b.classList.contains('lucio-active')) {
+      return { type: 'element', el: document.getElementById('lucio-screen') };
+    }
+    if (b.classList.contains('dea-active')) {
+      return { type: 'element', el: document.getElementById('dea-screen') };
+    }
+    if (b.classList.contains('utopia-active')) {
+      return { type: 'element', el: document.getElementById('utopia-screen') };
+    }
+    if (b.classList.contains('climbex-active')) {
+      return { type: 'element', el: document.getElementById('climbex-screen') };
+    }
+    if (b.classList.contains('nyo-active')) {
+      return { type: 'element', el: document.getElementById('nyo-screen') };
+    }
+    if (b.classList.contains('about-active')) {
+      return { type: 'about', el: document.getElementById('about-screen') };
+    }
+    if (b.classList.contains('archive-active')) {
+      const arch = document.getElementById('archive-screen');
+      if (arch && arch.scrollHeight > arch.clientHeight + 4) {
+        return { type: 'element', el: arch };
+      }
+      return null;
+    }
+    if (b.classList.contains('portfolio-active')) {
+      return { type: 'home' };
+    }
+    return null;
+  }
+
+  function getCurrentProgress() {
+    const ctx = getActiveScrollContext();
+    if (!ctx) return 0;
+
+    if (ctx.type === 'home') {
+      if (window.__portfolioScrollBridge) {
+        return window.__portfolioScrollBridge.getHomeProgress();
+      }
+      return 0;
+    }
+
+    const el = ctx.el;
+    if (!el) return 0;
+    const maxScroll = Math.max(0, el.scrollHeight - el.clientHeight);
+    if (maxScroll <= 0) return 0;
+    return Math.max(0, Math.min(1, el.scrollTop / maxScroll));
+  }
+
+  function setScrollProgress(p) {
+    const clamped = Math.max(0, Math.min(1, p));
+    const ctx = getActiveScrollContext();
+    if (!ctx) return;
+
+    if (ctx.type === 'home') {
+      if (window.__portfolioScrollBridge) {
+        window.__portfolioScrollBridge.setHomeProgress(clamped);
+      }
+      return;
+    }
+
+    const el = ctx.el;
+    if (!el) return;
+    const maxScroll = Math.max(0, el.scrollHeight - el.clientHeight);
+    const targetTop = clamped * maxScroll;
+
+    if (ctx.type === 'about' && window.__portfolioScrollBridge) {
+      window.__portfolioScrollBridge.setAboutScrollTop(targetTop);
+    } else {
+      el.scrollTop = targetTop;
+    }
+  }
+
+  function getTravelHeight() {
+    const trackH = scrollbarEl.clientHeight || window.innerHeight;
+    const thumbH = thumbEl.offsetHeight || 38;
+    return Math.max(1, trackH - TOP_PAD - BOTTOM_PAD - thumbH);
+  }
+
+  function updateThumbPosition() {
+    const progress = getCurrentProgress();
+    const travel = getTravelHeight();
+    const y = TOP_PAD + progress * travel;
+    thumbEl.style.setProperty('--thumb-y', `${y.toFixed(2)}px`);
+  }
+
+  function clearHideTimer() {
+    if (hideTimer) {
+      clearTimeout(hideTimer);
+      hideTimer = null;
+    }
+  }
+
+  function hideScrollbarNow() {
+    clearHideTimer();
+    isVisible = false;
+    isHoveringThumb = false;
+    isDragging = false;
+    scrollbarEl.classList.remove('is-visible');
+    thumbEl.classList.remove('is-thumb-active', 'is-dragging');
+  }
+
+  function scheduleHide(delayMs = HIDE_DELAY_MS) {
+    clearHideTimer();
+    hideTimer = setTimeout(() => {
+      if (!isDragging && !isHoveringThumb) {
+        isVisible = false;
+        scrollbarEl.classList.remove('is-visible');
+        thumbEl.classList.remove('is-thumb-active', 'is-dragging');
+      }
+    }, delayMs);
+  }
+
+  function showScrollbar() {
+    const ctx = getActiveScrollContext();
+    if (!ctx) {
+      if (isVisible) hideScrollbarNow();
+      return;
+    }
+    updateThumbPosition();
+    if (!isVisible) {
+      isVisible = true;
+      scrollbarEl.classList.add('is-visible');
+    }
+  }
+
+  // Rilevamento prossimita al margine destro con il cursore del mouse
+  window.addEventListener('mousemove', (e) => {
+    if (isDragging) return;
+    const nearRightEdge = e.clientX >= (window.innerWidth - EDGE_PROXIMITY_PX);
+
+    if (nearRightEdge) {
+      showScrollbar();
+      if (!isHoveringThumb) {
+        scheduleHide(HIDE_DELAY_MS);
+      }
+    } else if (isVisible && !isHoveringThumb && !hideTimer) {
+      scheduleHide(HIDE_DELAY_MS);
+    }
+  }, { passive: true });
+
+  // Interazione Hover sulla pillola
+  thumbEl.addEventListener('mouseenter', () => {
+    isHoveringThumb = true;
+    thumbEl.classList.add('is-thumb-active');
+    showScrollbar();
+    clearHideTimer();
+  });
+
+  thumbEl.addEventListener('mouseleave', () => {
+    isHoveringThumb = false;
+    if (!isDragging) {
+      // Immediatamente la dimensione e il colore della pillolina tornano quelli iniziali
+      thumbEl.classList.remove('is-thumb-active');
+      // Dopo 3 secondi la scroll bar sparisce
+      scheduleHide(HIDE_DELAY_MS);
+    }
+  });
+
+  // Trascinamento (Drag) della pillola
+  thumbEl.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    isDragging = true;
+    dragStartY = e.clientY;
+    dragStartProgress = getCurrentProgress();
+
+    thumbEl.classList.add('is-thumb-active', 'is-dragging');
+    showScrollbar();
+    clearHideTimer();
+
+    if (thumbEl.setPointerCapture) {
+      try { thumbEl.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+  });
+
+  // Click diretto sulla linea verticale per saltare e trascinare
+  scrollbarEl.addEventListener('pointerdown', (e) => {
+    if (e.target === thumbEl || thumbEl.contains(e.target)) return;
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const thumbH = thumbEl.offsetHeight || 38;
+    const travel = getTravelHeight();
+    const targetY = e.clientY - TOP_PAD - (thumbH / 2);
+    const nextProgress = Math.max(0, Math.min(1, targetY / travel));
+
+    setScrollProgress(nextProgress);
+    updateThumbPosition();
+
+    isDragging = true;
+    dragStartY = e.clientY;
+    dragStartProgress = nextProgress;
+
+    thumbEl.classList.add('is-thumb-active', 'is-dragging');
+    showScrollbar();
+    clearHideTimer();
+
+    if (thumbEl.setPointerCapture) {
+      try { thumbEl.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+  });
+
+  window.addEventListener('pointermove', (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const dy = e.clientY - dragStartY;
+    const travel = getTravelHeight();
+    const nextProgress = Math.max(0, Math.min(1, dragStartProgress + (dy / travel)));
+    setScrollProgress(nextProgress);
+    updateThumbPosition();
+  });
+
+  function endDrag(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    thumbEl.classList.remove('is-dragging');
+
+    if (e && thumbEl.releasePointerCapture) {
+      try { thumbEl.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+
+    const rect = thumbEl.getBoundingClientRect();
+    const pointerStillOnThumb = Boolean(
+      e &&
+      typeof e.clientX === 'number' &&
+      e.clientX >= rect.left - 6 &&
+      e.clientX <= rect.right + 6 &&
+      e.clientY >= rect.top - 4 &&
+      e.clientY <= rect.bottom + 4
+    );
+
+    isHoveringThumb = pointerStillOnThumb;
+
+    if (!isHoveringThumb) {
+      // Immediatamente la dimensione e il colore della pillolina tornano quelli iniziali
+      thumbEl.classList.remove('is-thumb-active');
+      // Dopo 3 secondi la scroll bar sparisce
+      scheduleHide(HIDE_DELAY_MS);
+    }
+  }
+
+  window.addEventListener('pointerup', endDrag);
+  window.addEventListener('pointercancel', endDrag);
+
+  scrollableScreens.forEach((screenEl) => {
+    screenEl.addEventListener('scroll', () => {
+      updateThumbPosition();
+    }, { passive: true });
+  });
+
+  window.addEventListener('resize', () => {
+    updateThumbPosition();
+  });
+
+  window.updateCustomEdgeScrollbar = updateThumbPosition;
 }
 
 

@@ -4582,6 +4582,78 @@
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     }
 
+    /* ========================================================================
+       CUSTOM RIGHT-EDGE PROXIMITY SCROLLBAR
+       Appare da destra verso sinistra solo quando il cursore cerca il margine destro
+       ======================================================================== */
+    .custom-edge-scrollbar {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 22px;
+      height: 100vh;
+      z-index: 950;
+      pointer-events: none;
+      transform: translate3d(24px, 0, 0);
+      opacity: 0;
+      transition: transform 0.36s cubic-bezier(0.16, 1, 0.3, 1),
+                  opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      will-change: transform, opacity;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .custom-edge-scrollbar.is-visible {
+      transform: translate3d(0, 0, 0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .custom-scrollbar-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 1.5px;
+      transform: translateX(-50%);
+      background-color: #888888;
+      pointer-events: none;
+    }
+
+    .custom-scrollbar-thumb {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 8px;
+      height: 38px;
+      transform: translate3d(-50%, var(--thumb-y, 12px), 0);
+      border-radius: 999px;
+      background-color: #FFFFFF !important;
+      border: 1.5px solid #888888 !important;
+      box-sizing: border-box;
+      cursor: pointer;
+      /* Reset immediato di larghezza e colore appena l'utente smette di interagire */
+      transition: none;
+      will-change: transform, width, border-color;
+    }
+
+    .custom-scrollbar-thumb::before {
+      content: '';
+      position: absolute;
+      inset: -4px -6px;
+    }
+
+    .custom-scrollbar-thumb.is-thumb-active {
+      width: 12px;
+      border-color: #000000 !important;
+      transition: width 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+                  border-color 0.14s ease;
+    }
+
+    .custom-scrollbar-thumb.is-dragging {
+      cursor: grabbing;
+    }
+
     /* Mobile / Tablet responsive */
     @media (max-width: 1023px) {
       .left-section {
@@ -6442,6 +6514,12 @@
   <!-- Toast Notification -->
   <div id="toast" class="text-nav-small">
     <span id="toast-message">NOTIFICATION</span>
+  </div>
+
+  <!-- Custom Right-Edge Proximity Scrollbar -->
+  <div id="custom-edge-scrollbar" class="custom-edge-scrollbar" aria-hidden="true">
+    <div class="custom-scrollbar-line"></div>
+    <div id="custom-scrollbar-thumb" class="custom-scrollbar-thumb"></div>
   </div>
 
   <!-- Scripts -->
