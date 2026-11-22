@@ -3651,7 +3651,7 @@ function initCustomEdgeScrollbar() {
   if (!scrollbarEl || !thumbEl) return;
 
   const EDGE_PROXIMITY_PX = 44;
-  const HIDE_DELAY_MS = 3000;
+  const HIDE_DELAY_MS = 1500;
   const TOP_PAD = 12;
   const BOTTOM_PAD = 12;
 
