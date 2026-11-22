@@ -4590,7 +4590,7 @@
       position: fixed;
       top: 0;
       right: 0;
-      width: 22px;
+      width: 24px;
       height: 100vh;
       z-index: 950;
       pointer-events: none;
@@ -4609,45 +4609,37 @@
       pointer-events: auto;
     }
 
-    .custom-scrollbar-line {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 50%;
-      width: 1.5px;
-      transform: translateX(-50%);
-      background-color: #888888;
-      pointer-events: none;
-    }
-
     .custom-scrollbar-thumb {
       position: absolute;
       top: 0;
-      left: 50%;
-      width: 8px;
+      right: 6px;
+      width: 14px;
       height: 38px;
-      transform: translate3d(-50%, var(--thumb-y, 12px), 0);
-      border-radius: 999px;
-      background-color: #FFFFFF !important;
-      border: 1.5px solid #888888 !important;
+      transform: translate3d(0, var(--thumb-y, 12px), 0);
+      background: transparent !important;
+      border: none !important;
       box-sizing: border-box;
       cursor: pointer;
-      /* Reset immediato di larghezza e colore appena l'utente smette di interagire */
-      transition: none;
-      will-change: transform, width, border-color;
+      will-change: transform;
     }
 
-    .custom-scrollbar-thumb::before {
+    .custom-scrollbar-thumb::after {
       content: '';
       position: absolute;
-      inset: -4px -6px;
+      top: 0;
+      bottom: 0;
+      right: 0;
+      width: 7px;
+      border-radius: 999px;
+      background-color: #888888 !important;
+      border: none !important;
+      transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: width;
     }
 
-    .custom-scrollbar-thumb.is-thumb-active {
+    .custom-scrollbar-thumb.is-thumb-active::after {
       width: 12px;
-      border-color: #000000 !important;
-      transition: width 0.16s cubic-bezier(0.16, 1, 0.3, 1),
-                  border-color 0.14s ease;
+      background-color: #888888 !important;
     }
 
     .custom-scrollbar-thumb.is-dragging {
@@ -6518,7 +6510,6 @@
 
   <!-- Custom Right-Edge Proximity Scrollbar -->
   <div id="custom-edge-scrollbar" class="custom-edge-scrollbar" aria-hidden="true">
-    <div class="custom-scrollbar-line"></div>
     <div id="custom-scrollbar-thumb" class="custom-scrollbar-thumb"></div>
   </div>
 
